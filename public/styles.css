@@ -145,6 +145,35 @@ h2 { font-family: var(--serif); font-weight: 600; font-size: 22px; margin: 34px 
 .btn:disabled { opacity: .45; cursor: wait; }
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0; }
 
+/* course map */
+.course-map { list-style: none; padding: 0; margin: 14px 0 30px; }
+.map-level {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--margin-red); padding: 16px 0 6px; border-bottom: 2px solid var(--ink);
+  margin-bottom: 8px; font-weight: 600;
+}
+.map-item {
+  display: flex; align-items: center; gap: 12px; padding: 9px 12px;
+  border-radius: 8px; cursor: pointer; border: 1.5px solid transparent;
+}
+.map-item:hover { background: var(--card); border-color: var(--line); }
+.map-dot {
+  width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  background: var(--paper-deep); color: var(--ink-faint); border: 1.5px solid var(--line);
+}
+.map-item.done .map-dot { background: var(--green); border-color: var(--green); color: #fff; }
+.map-item.written .map-dot, .map-item.next .map-dot { border-color: var(--ink); color: var(--ink); }
+.map-item.next { background: var(--marker-soft); border-color: var(--marker); }
+.map-item.future { opacity: .62; }
+.map-item.future:hover { opacity: 1; }
+.map-text { flex: 1; line-height: 1.35; }
+.map-text strong { font-size: 15px; }
+.map-text span { display: block; font-size: 12.5px; color: var(--ink-soft); }
+.map-cta { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); flex-shrink: 0; }
+.map-item.next .map-cta { color: var(--ink); font-weight: 600; }
+
 /* lesson list */
 .lesson-list { list-style: none; padding: 0; margin: 20px 0; }
 .lesson-item {

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import {
   MODEL, aiConfigured, friendlyError, httpError,
   generateLessonContent, tutorChat, fetchMarket, analyzeChart,
-  companyCaseStudy, writingFeedback, practiceSentences
+  companyCaseStudy, writingFeedback, practiceSentences, generateSyllabus
 } from "./lib/ai.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -48,6 +48,8 @@ async function handleApi(req, res, url) {
       return send(res, 200, await fetchMarket(url.searchParams.get("symbol"), Number(url.searchParams.get("months")) || 12));
     case "POST /api/generate/lesson":
       return send(res, 200, await generateLessonContent(await readBody(req)));
+    case "POST /api/syllabus":
+      return send(res, 200, await generateSyllabus(await readBody(req)));
     case "POST /api/chat":
       return send(res, 200, { reply: await tutorChat(await readBody(req)) });
     case "POST /api/analyze/chart":

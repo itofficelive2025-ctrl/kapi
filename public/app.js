@@ -232,12 +232,58 @@ async function renderTopic(topicId) {
       ${topic.id === "stocks-fundamental" ? `<a class="btn marker" href="#/company/${topicId}">🏢 Company case study</a>` : ""}`
     : "";
 
+  const syllabus = store.read("kapi.syllabus", {})[topicId];
+  const mapKeyOf = (i) => `${topicId}::${i}`;
+  const writtenByKey = {};
+  lessons.forEach((l) => { if (l.syllabusKey) writtenByKey[l.syllabusKey] = l; });
+  let courseMapHtml = "";
+  if (syllabus?.lessons?.length) {
+    const writtenCount = syllabus.lessons.filter((_, i) => writtenByKey[mapKeyOf(i)]).length;
+    const doneCountMap = syllabus.lessons.filter((_, i) => {
+      const l = writtenByKey[mapKeyOf(i)];
+      return l && state.progress.lessons[l.id]?.completed;
+    }).length;
+    const nextIdx = syllabus.lessons.findIndex((_, i) => {
+      const l = writtenByKey[mapKeyOf(i)];
+      return !l || !state.progress.lessons[l.id]?.completed;
+    });
+    let lastLevel = 0;
+    courseMapHtml = `
+      <h2>Course map</h2>
+      <p class="small">${doneCountMap} of ${syllabus.lessons.length} completed · ${writtenCount} written · lessons are written by your tutor the moment you reach them</p>
+      <ol class="course-map">
+        ${syllabus.lessons.map((s, i) => {
+          const written = writtenByKey[mapKeyOf(i)];
+          const completed = written && state.progress.lessons[written.id]?.completed;
+          const isNext = i === nextIdx;
+          const levelHead = s.level !== lastLevel
+            ? `<li class="map-level">Level ${s.level} — ${esc(topic.levels?.[s.level - 1] || "")}</li>` : "";
+          lastLevel = s.level;
+          return `${levelHead}
+            <li class="map-item ${completed ? "done" : isNext ? "next" : written ? "written" : "future"}"
+                data-idx="${i}" ${written ? `data-lesson="${written.id}"` : ""}>
+              <span class="map-dot">${completed ? "✓" : written ? "○" : "·"}</span>
+              <span class="map-text"><strong>${esc(s.title)}</strong><span>${esc(s.summary)}</span></span>
+              <span class="map-cta">${completed ? "review" : written ? "continue" : isNext ? (state.ai ? "write & start →" : "needs AI") : ""}</span>
+            </li>`;
+        }).join("")}
+      </ol>`;
+  } else {
+    courseMapHtml = `
+      <h2>Course map</h2>
+      <p class="small">Let your tutor design the whole course — 25+ lessons sequenced across all 5 levels. Each lesson is written when you reach it.</p>
+      ${aiGate("Course map generation needs the AI connection")}
+      <div class="btn-row"><button id="syllabus-btn" class="btn marker" ${state.ai ? "" : "disabled"}>🗺 Create my course map</button></div>
+      <div id="syllabus-out"></div>`;
+  }
+
   view.innerHTML = `
     ${crumb(topic)}
     <div class="eyebrow">${esc(topic.levels?.join(" · ") || "")}</div>
     <h1>${esc(topic.name)}</h1>
     <p class="lede">${esc(topic.description)}</p>
     <div class="btn-row">${practiceButtons}</div>
+    ${courseMapHtml}
     <h2>Lessons</h2>
     <ul class="lesson-list">
       ${lessons.map((l) => {
@@ -261,6 +307,57 @@ async function renderTopic(topicId) {
       <button id="gen-btn" class="btn" ${state.ai ? "" : "disabled"}>Write next lesson</button>
     </div>
     <div id="gen-out"></div>`;
+
+  $("#syllabus-btn")?.addEventListener("click", async () => {
+    const btn = $("#syllabus-btn"), out = $("#syllabus-out");
+    btn.disabled = true;
+    out.innerHTML = `<p><span class="spinner"></span>Your tutor is designing the full course… (15–60 seconds)</p>`;
+    try {
+      const result = await api("/api/syllabus", {
+        topic: { name: topic.name, description: topic.description, kind: topic.kind, levels: topic.levels },
+        existingTitles: lessons.map((l) => l.title)
+      });
+      if (!result.lessons?.length) throw new Error("The course map came back empty — try again.");
+      result.lessons.sort((a, b) => a.level - b.level);
+      const all = store.read("kapi.syllabus", {});
+      all[topicId] = { lessons: result.lessons, createdAt: Date.now() };
+      store.write("kapi.syllabus", all);
+      renderTopic(topicId);
+    } catch (e) {
+      out.innerHTML = `<div class="error-box">${esc(e.message)}</div>`;
+      btn.disabled = false;
+    }
+  });
+
+  view.querySelectorAll(".map-item").forEach((el) => el.addEventListener("click", async () => {
+    if (el.dataset.lesson) { location.hash = `#/lesson/${el.dataset.lesson}`; return; }
+    if (!state.ai) return;
+    if (el.dataset.busy) return;
+    el.dataset.busy = "1";
+    const idx = +el.dataset.idx;
+    const s = syllabus.lessons[idx];
+    const cta = el.querySelector(".map-cta");
+    cta.innerHTML = `<span class="spinner"></span>writing…`;
+    try {
+      const lesson = await api("/api/generate/lesson", {
+        topic: { name: topic.name, description: topic.description, kind: topic.kind, levels: topic.levels },
+        level: s.level,
+        existingTitles: lessons.map((l) => l.title),
+        request: `Write exactly this lesson from the course plan — title: "${s.title}", covering: ${s.summary}. Keep the title as given.`
+      });
+      lesson.id = `gen-${Date.now()}`;
+      lesson.topicId = topicId;
+      lesson.syllabusKey = mapKeyOf(idx);
+      lesson.title = s.title; // keep the map and lesson in sync
+      saveGeneratedLesson(lesson);
+      state.lessons[topicId] = lessonsForTopic(topicId);
+      location.hash = `#/lesson/${lesson.id}`;
+    } catch (e) {
+      cta.textContent = "failed — tap to retry";
+      delete el.dataset.busy;
+      alert(e.message);
+    }
+  }));
 
   $("#gen-btn")?.addEventListener("click", async () => {
     const btn = $("#gen-btn"), out = $("#gen-out");
