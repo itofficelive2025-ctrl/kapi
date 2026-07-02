@@ -183,7 +183,47 @@ async function renderHome() {
           <p>${esc(t.description)}</p>
           <span class="t-meta">${t.lessonCount || 0} lessons · ${doneCount(t.id)} completed</span>
         </button>`).join("")}
-    </div>`;
+    </div>
+    <p class="small backup-row">
+      Your progress lives in this browser.
+      <button class="linklike" id="export-btn">Download backup</button> ·
+      <button class="linklike" id="import-btn">Restore from backup</button>
+      <input type="file" id="import-file" accept=".json,application/json" hidden />
+    </p>`;
+
+  $("#export-btn").addEventListener("click", () => {
+    const backup = {
+      kapiBackup: 1,
+      exportedAt: new Date().toISOString(),
+      progress: store.read("kapi.progress", { lessons: {}, cards: {}, meta: {} }),
+      topics: store.read("kapi.topics", []),
+      lessons: store.read("kapi.lessons", []),
+      syllabus: store.read("kapi.syllabus", {})
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `kapi-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  $("#import-btn").addEventListener("click", () => $("#import-file").click());
+  $("#import-file").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const backup = JSON.parse(await file.text());
+      if (backup.kapiBackup !== 1) throw new Error("That file is not a Kapi backup.");
+      if (!confirm(`Restore backup from ${backup.exportedAt?.slice(0, 10) || "unknown date"}? This replaces the progress in this browser.`)) return;
+      store.write("kapi.progress", backup.progress || { lessons: {}, cards: {}, meta: {} });
+      store.write("kapi.topics", backup.topics || []);
+      store.write("kapi.lessons", backup.lessons || []);
+      store.write("kapi.syllabus", backup.syllabus || {});
+      location.reload();
+    } catch (err) {
+      alert("Could not restore: " + err.message);
+    }
+  });
 }
 
 // ------------------------------------------- daily review (all topics mixed)
