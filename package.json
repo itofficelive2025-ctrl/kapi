@@ -1,0 +1,13 @@
+{
+  "name": "learn-app",
+  "version": "1.0.0",
+  "description": "Personal learning app - English (from Nepali), stock market, and any topic, powered by Claude",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.109.1"
+  }
+}

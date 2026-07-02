@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kapi — your study copybook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Devanagari:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">कापी</span>
+        <span class="brand-name">Kapi</span>
+        <span class="brand-sub">your study copybook</span>
+      </div>
+      <nav id="topic-nav" class="topic-nav" aria-label="Topics"></nav>
+      <button id="add-topic-btn" class="add-topic">+ New topic</button>
+      <div class="sidebar-foot">
+        <div id="ai-status" class="ai-status">checking AI…</div>
+      </div>
+    </aside>
+
+    <main id="main" class="page">
+      <div class="margin-rule" aria-hidden="true"></div>
+      <div id="view" class="view"></div>
+    </main>
+  </div>
+
+  <button id="tutor-fab" class="tutor-fab" title="Ask your tutor">?</button>
+  <section id="tutor-panel" class="tutor-panel hidden" aria-label="Tutor chat">
+    <header class="tutor-head">
+      <span>Tutor</span>
+      <span id="tutor-context" class="tutor-ctx"></span>
+      <button id="tutor-close" class="tutor-close" aria-label="Close tutor">×</button>
+    </header>
+    <div id="tutor-log" class="tutor-log"></div>
+    <form id="tutor-form" class="tutor-form">
+      <input id="tutor-input" type="text" placeholder="Ask anything — English or Nepali…" autocomplete="off" />
+      <button type="submit">Send</button>
+    </form>
+  </section>
+
+  <script src="/seed-data.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
