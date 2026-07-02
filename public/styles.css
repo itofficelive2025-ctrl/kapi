@@ -267,6 +267,21 @@ input[type="text"] {
 .result-good { color: var(--green); font-weight: 600; }
 .result-bad { color: var(--red-loss); font-weight: 600; }
 
+/* conversation practice */
+.talk-log {
+  max-height: 380px; overflow-y: auto; padding: 12px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+  margin-bottom: 12px;
+}
+.talk-log .msg.assistant { background: #fff; }
+.talk-fix {
+  max-width: 85%; margin: -4px 0 12px auto; padding: 7px 12px;
+  background: var(--marker-soft); border-left: 3px solid var(--marker);
+  border-radius: 0 8px 8px 8px; font-size: 13px;
+}
+.talk-fix span { display: block; color: var(--ink-soft); font-size: 12px; margin-top: 2px; }
+.linklike { border: 0; background: none; color: var(--margin-red); text-decoration: underline; font-size: inherit; padding: 0; }
+
 /* market */
 .market-bar { display: flex; gap: 10px; align-items: center; margin: 16px 0; flex-wrap: wrap; }
 #chart-canvas { width: 100%; height: 340px; background: #fdfdfb; border: 1px solid var(--line); border-radius: 10px; }

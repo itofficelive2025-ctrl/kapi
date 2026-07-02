@@ -620,16 +620,18 @@ async function renderPractice(topicId, mode) {
     <div class="practice-tabs">
       <button class="ptab ${mode === "listen" ? "active" : ""}" data-nav="#/practice/${topicId}/listen">🎧 Listening</button>
       <button class="ptab ${mode === "speak" ? "active" : ""}" data-nav="#/practice/${topicId}/speak">🎙 Speaking</button>
+      <button class="ptab ${mode === "talk" ? "active" : ""}" data-nav="#/practice/${topicId}/talk">🗣 Conversation</button>
       <button class="ptab ${mode === "write" ? "active" : ""}" data-nav="#/practice/${topicId}/write">✍ Writing</button>
     </div>`;
   const head = `
     ${crumb(topic, "Practice")}
     <div class="eyebrow">Practice · अभ्यास</div>
-    <h1>${mode === "listen" ? "Listening — dictation" : mode === "speak" ? "Speaking — read aloud" : "Writing — get corrected"}</h1>
+    <h1>${mode === "listen" ? "Listening — dictation" : mode === "speak" ? "Speaking — read aloud" : mode === "talk" ? "Conversation — talk with your tutor" : "Writing — get corrected"}</h1>
     ${tabs}`;
 
   if (mode === "listen") return renderListening(head);
   if (mode === "speak") return renderSpeaking(head);
+  if (mode === "talk") return renderTalk(head, topicId);
   return renderWriting(head);
 }
 
@@ -729,6 +731,113 @@ async function renderSpeaking(head) {
     });
   }
   draw();
+}
+
+// ------------------------------------------------- conversation practice
+const TALK_SCENARIOS = [
+  { id: "free", label: "Free chat — anything you like" },
+  { id: "intro", label: "Meeting someone new" },
+  { id: "market", label: "At the market / shopping" },
+  { id: "restaurant", label: "Ordering at a restaurant" },
+  { id: "interview", label: "A simple job interview" },
+  { id: "travel", label: "Asking for directions while travelling" }
+];
+
+let talkState = null; // { scenario, messages: [{role, content, correction?, note?}] }
+
+function renderTalk(head, topicId) {
+  state.tutorContext = "English conversation practice (voice)";
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!talkState) {
+    view.innerHTML = `${head}
+      ${aiGate("Conversation practice needs the AI connection")}
+      <div class="practice-box">
+        <p class="small">Pick a scenario. Your tutor speaks first — answer by voice (or type). It corrects your grammar as you go, then keeps the conversation moving.</p>
+        <div class="btn-row" style="flex-direction:column;align-items:flex-start">
+          ${TALK_SCENARIOS.map((s) => `<button class="btn ghost talk-scn" data-scn="${s.id}" ${state.ai ? "" : "disabled"}>${esc(s.label)}</button>`).join("")}
+        </div>
+      </div>`;
+    view.querySelectorAll(".talk-scn").forEach((b) => b.addEventListener("click", () => {
+      const scn = TALK_SCENARIOS.find((s) => s.id === b.dataset.scn);
+      talkState = { scenario: scn.label, messages: [] };
+      startTalkTurn(head, topicId, "(Start the conversation for this scenario. Greet me briefly and ask your first question.)", true);
+    }));
+    return;
+  }
+  drawTalk(head, topicId);
+}
+
+function drawTalk(head, topicId, busy) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const visible = talkState.messages.filter((m) => !m.hidden);
+  view.innerHTML = `${head}
+    <div class="practice-box">
+      <p class="small">Scenario: ${esc(talkState.scenario)} · <button class="linklike" id="talk-reset">start over</button></p>
+      <div class="talk-log" id="talk-log">
+        ${visible.map((m) => `
+          <div class="msg ${m.role}">${esc(m.content)}</div>
+          ${m.correction ? `<div class="talk-fix">✎ Better: “${esc(m.correction)}”${m.note ? `<span>${esc(m.note)}</span>` : ""}</div>` : ""}
+        `).join("")}
+        ${busy ? `<div class="msg thinking">tutor is thinking…</div>` : ""}
+      </div>
+      <div class="btn-row" style="align-items:center">
+        <button class="btn marker" id="talk-mic" ${SR && state.ai && !busy ? "" : "disabled"}>🎙 Hold a thought, tap & speak</button>
+        <button class="btn ghost" id="talk-repeat" ${busy ? "disabled" : ""}>🔊 Repeat</button>
+      </div>
+      <form id="talk-form" class="tutor-form" style="padding:10px 0 0;border:0">
+        <input id="talk-input" type="text" placeholder="…or type your reply" autocomplete="off" ${busy ? "disabled" : ""} />
+        <button type="submit" class="btn" ${busy ? "disabled" : ""}>Send</button>
+      </form>
+      ${SR ? "" : `<p class="small">Voice input needs Chrome or Edge — typing works everywhere.</p>`}
+      <div id="talk-error"></div>
+    </div>`;
+
+  const log = $("#talk-log");
+  log.scrollTop = log.scrollHeight;
+
+  $("#talk-reset").addEventListener("click", () => { speechSynthesis?.cancel(); talkState = null; renderTalk(head, topicId); });
+  $("#talk-repeat").addEventListener("click", () => {
+    const lastTutor = [...talkState.messages].reverse().find((m) => m.role === "assistant");
+    if (lastTutor) speak(lastTutor.content);
+  });
+  $("#talk-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = $("#talk-input").value.trim();
+    if (text) startTalkTurn(head, topicId, text, false);
+  });
+  $("#talk-mic")?.addEventListener("click", () => {
+    const btn = $("#talk-mic");
+    btn.textContent = "🎙 Listening… speak now";
+    const rec = makeRecognizer(
+      (transcript) => startTalkTurn(head, topicId, transcript, false),
+      (err) => {
+        btn.textContent = "🎙 Tap & speak";
+        $("#talk-error").innerHTML = `<div class="error-box">Microphone error: ${esc(err)}. Check mic permission.</div>`;
+      }
+    );
+    rec?.start();
+  });
+}
+
+async function startTalkTurn(head, topicId, userText, hidden) {
+  talkState.messages.push({ role: "user", content: userText, hidden });
+  drawTalk(head, topicId, true);
+  try {
+    const r = await api("/api/english/talk", {
+      scenario: talkState.scenario,
+      messages: talkState.messages.map((m) => ({ role: m.role, content: m.content }))
+    });
+    const userMsg = talkState.messages[talkState.messages.length - 1];
+    if (r.correction && !hidden) { userMsg.correction = r.correction; userMsg.note = r.correctionNote; }
+    talkState.messages.push({ role: "assistant", content: r.reply });
+    drawTalk(head, topicId, false);
+    speak(r.reply);
+  } catch (e) {
+    talkState.messages.pop(); // drop the failed turn so retry is clean
+    drawTalk(head, topicId, false);
+    $("#talk-error").innerHTML = `<div class="error-box">${esc(e.message)}</div>`;
+  }
 }
 
 const WRITING_TASKS = [

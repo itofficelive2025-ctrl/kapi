@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import {
   MODEL, aiConfigured, friendlyError, httpError,
   generateLessonContent, tutorChat, fetchMarket, analyzeChart,
-  companyCaseStudy, writingFeedback, practiceSentences, generateSyllabus
+  companyCaseStudy, writingFeedback, practiceSentences, generateSyllabus, talkTurn
 } from "./lib/ai.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -60,6 +60,8 @@ async function handleApi(req, res, url) {
       return send(res, 200, await writingFeedback(await readBody(req)));
     case "POST /api/english/sentences":
       return send(res, 200, await practiceSentences(await readBody(req)));
+    case "POST /api/english/talk":
+      return send(res, 200, await talkTurn(await readBody(req)));
     default:
       throw httpError(404, "Unknown API route");
   }
